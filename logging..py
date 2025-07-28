@@ -11,7 +11,7 @@ load_dotenv()
 # configurations
 
 SHEET_NAME = "Resale Log"  # Name of your Google Sheet
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("OPENAI_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 # google sheets set up
@@ -43,13 +43,26 @@ async def on_message(message):
         print("Received", entry)
 
         prompt = f"""
-Extract the following log into a JSON with these fields:
-product, quantity, price, retailer, card, and date.
+Extract the following purchase log into a JSON with these fields:
+- product
+- quantity
+- total price (not unit price)
+- retailer (store name or abbreviation like WM = Walmart, AMZ = Amazon, etc.)
+- card (if mentioned)
+- date (in YYYY-MM-DD format if mentioned)
+- tax free (default no)
+
+Requirements:
+- "price" must be the TOTAL price for all units (e.g., 3 items at $10 = 30).
+- Use numbers only (no $ or commas) for quantity and price.
+- If a field is not mentioned, set its value to unknown.
+- If retailer is abbreviated (e.g. WM, AMZ, BBY), return full name.
+- Return only valid JSON (no markdown, no commentary).
 
 Input: "{entry}"
 
 Output format:
-{{"product": "...", "quantity": ..., "price": ..., "retailer": "...", "card": "...", "date": "..."}}
+{{"product": "...", "quantity": ..., "price": ..., "retailer": "...", "card": "...", "date": "...", "tax free": "..."}}
 """
         try:
             response = openai.ChatCompletion.create(
@@ -66,7 +79,8 @@ Output format:
                 result["quantity"],
                 result["price"],
                 result["retailer"],
-                result["card"]
+                result["card"],
+                result["tax free"]
             ])
 
             await message.channel.send(
